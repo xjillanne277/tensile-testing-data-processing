@@ -34,10 +34,20 @@ def process_file(uploaded_file, orientation):
         data_lines = [l.strip() for l in data_lines if l.strip() and not l.startswith('Results')]
         data_lines = [l for l in data_lines if len(l.split(',')) >= 8]
         
-        if not data_lines:
+        parsed_data = []
+        for l in data_lines:
+            parts = l.split(',')
+            if len(parts) >= 8:
+                try:
+                    row = [float(x) for x in parts[1:8]]
+                    parsed_data.append(row)
+                except ValueError:
+                    continue
+        
+        if not parsed_data:
             continue
             
-        df = pd.DataFrame([l.split(',')[1:8] for l in data_lines], dtype=float)
+        df = pd.DataFrame(parsed_data, dtype=float)
         df.columns = ['time_s', 'displacement_mm', 'force_n', 'tensile_strain_percent', 
                       'tensile_stress_mpa', 'tensile_displacement_mm', 'corrected_displacement_mm']
         
