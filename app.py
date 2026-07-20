@@ -122,9 +122,16 @@ if uploaded_files:
             
         with col2:
             st.subheader("Force vs. Displacement")
+            
+            # Display metric cards for energy absorption
+            m_cols = st.columns(min(len(final_summary), 3) if len(final_summary) > 0 else 1)
+            for i, row in final_summary.iterrows():
+                m_cols[i % 3].metric(label=f"Energy ({row['Coupon']})", value=f"{row['Energy (J)']:.2f} J")
+                
             fig2 = px.line(final_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
                            labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
-                           title='Load vs Displacement')
+                           title='Load vs Displacement (Shaded Energy Area)')
+            fig2.update_traces(fill='tozeroy', opacity=0.3)
             st.plotly_chart(fig2, use_container_width=True)
             
         st.header("3. Export Cleaned Data")
