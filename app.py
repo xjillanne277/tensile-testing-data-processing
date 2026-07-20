@@ -109,6 +109,25 @@ if uploaded_files:
         st.header("1. Summary Metrics")
         st.dataframe(final_summary)
         
+        # Educational Section
+        st.markdown("---")
+        st.header("📚 Educational Insights: Energy Absorption")
+        st.info("Did you know? **Energy absorption** (or toughness) is represented by the total area under the Load vs. Displacement curve! This tells us how much energy the material can absorb before it completely fails.")
+        
+        st.markdown(r"""
+        We calculate this automatically using the **Trapezoidal Rule** for numerical integration. By slicing the area under the curve into tiny trapezoids and summing them up, we get the total energy in Joules (J). 
+        
+        The formula looks like this:
+        $$ E = \sum_{i=1}^{n-1} \frac{F_i + F_{i+1}}{2} (x_{i+1} - x_i) $$
+        
+        Where:
+        * $E$ is the total energy (Joules)
+        * $F$ is the Force (Newtons)
+        * $x$ is the Displacement (mm)
+        * *Note: Since we use mm, the raw area is in N·mm. We multiply by 0.001 to convert to Joules (J)!*
+        """)
+        st.markdown("---")
+        
         st.header("2. Visualizations")
         
         col1, col2 = st.columns(2)
