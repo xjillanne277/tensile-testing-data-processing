@@ -128,7 +128,7 @@ if uploaded_files:
             st.plotly_chart(fig2, use_container_width=True)
             
         st.markdown("---")
-        st.subheader("Energy Absorption (Area Under Curve)")
+        st.subheader("Energy Absorption (Area Under Load-Displacement Curve)")
         
         # Display metric cards for energy absorption
         m_cols = st.columns(min(len(final_summary), 4) if len(final_summary) > 0 else 1)
@@ -137,7 +137,7 @@ if uploaded_files:
             
         fig3 = px.line(final_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
                        labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
-                       title='Filled Load-Displacement Area')
+                       title='Area Under Load-Displacement Curve')
         fig3.update_traces(fill='tozeroy', opacity=0.3)
         st.plotly_chart(fig3, use_container_width=True)
             
