@@ -232,4 +232,4 @@ if uploaded_files:
             mime='text/csv',
         )
 
-st.markdown("<br><br><p style='text-align: center; font-size: 10px; color: gray;'>created by jiillanne@ Product Design Engineering Intern, Advanced Architechture</p>", unsafe_allow_html=True)
+st.markdown("<br><br><p style='text-align: center; font-size: 10px; color: gray;'>Created by jiillanne@ Product Design Engineering Intern, Advanced Architechture</p>", unsafe_allow_html=True)
