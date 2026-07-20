@@ -45,7 +45,7 @@ def process_file(uploaded_file, orientation):
         for l in data_lines:
             parts = l.split(',')
             if len(parts) >= 8:
-                row = [float(x) for x in parts[1:8]]
+                row = [float(x.strip().strip('"').strip("'")) for x in parts[1:8]]
                 parsed_data.append(row)
         
         if not parsed_data:
