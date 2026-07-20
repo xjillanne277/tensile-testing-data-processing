@@ -77,12 +77,14 @@ def process_file(uploaded_file):
             modulus_gpa = np.nan
             
         peak_stress = df['tensile_stress_mpa'].max()
+        strain_break = df['tensile_strain_percent'].max()
         
         all_data.append(df)
         summary.append({
             'Coupon': coupon_id,
             'Peak Stress (MPa)': peak_stress,
             'Modulus (GPa)': modulus_gpa,
+            'Strain at Break (%)': strain_break,
             'Energy (J)': energy_j
         })
         
@@ -107,22 +109,55 @@ if uploaded_files:
         final_summary = pd.concat(summaries, ignore_index=True)
         
         st.header("1. Summary Metrics")
-        st.dataframe(final_summary)
+        
+        display_summary = final_summary.copy()
+        for col in ['Peak Stress (MPa)', 'Modulus (GPa)', 'Strain at Break (%)', 'Energy (J)']:
+            display_summary[col] = display_summary[col].round(2)
+        st.dataframe(display_summary, use_container_width=True)
+        
+        st.subheader("Statistical Variation Analysis (% CV)")
+        stats_df = pd.DataFrame()
+        stats_df['Metric'] = ['Peak Stress (MPa)', 'Modulus (GPa)', 'Strain at Break (%)', 'Energy (J)']
+        stats_df['Mean'] = [final_summary[c].mean() for c in stats_df['Metric']]
+        stats_df['Std Dev'] = [final_summary[c].std() for c in stats_df['Metric']]
+        stats_df['% CV'] = (stats_df['Std Dev'] / stats_df['Mean']) * 100
+        for col in ['Mean', 'Std Dev', '% CV']:
+            stats_df[col] = stats_df[col].round(2)
+        st.dataframe(stats_df, use_container_width=True)
         
         st.header("2. Visualizations")
+        
+        if 'focus_specimen' not in st.session_state:
+            st.session_state.focus_specimen = "All Coupons"
+
+        def reset_focus():
+            st.session_state.focus_specimen = "All Coupons"
+
+        focus_coupon = st.selectbox("Focus Specimen:", options=["All Coupons"] + list(final_summary['Coupon'].unique()), key='focus_specimen')
+        
+        plot_df = final_df
+        if focus_coupon != "All Coupons":
+            st.button("Reset View", on_click=reset_focus)
+            plot_df = final_df[final_df['coupon_id'] == focus_coupon]
+            row = final_summary[final_summary['Coupon'] == focus_coupon].iloc[0]
+            st.info(f"🌟 **Specimen Spotlight: {focus_coupon}**\n\n"
+                    f"Peak Stress: **{row['Peak Stress (MPa)']:.2f} MPa** | "
+                    f"Young's Modulus: **{row['Modulus (GPa)']:.2f} GPa** | "
+                    f"Strain at Break: **{row['Strain at Break (%)']:.2f} %** | "
+                    f"Energy Absorption: **{row['Energy (J)']:.2f} J**")
         
         col1, col2 = st.columns(2)
         
         with col1:
             st.subheader("Stress vs. Strain")
-            fig1 = px.line(final_df, x='tensile_strain_percent', y='tensile_stress_mpa', color='coupon_id',
+            fig1 = px.line(plot_df, x='tensile_strain_percent', y='tensile_stress_mpa', color='coupon_id',
                            labels={'tensile_strain_percent': 'Tensile Strain (%)', 'tensile_stress_mpa': 'Tensile Stress (MPa)'},
                            title='Stress vs Strain')
             st.plotly_chart(fig1, use_container_width=True)
             
         with col2:
             st.subheader("Force vs. Displacement")
-            fig2 = px.line(final_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
+            fig2 = px.line(plot_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
                            labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
                            title='Load vs Displacement')
             st.plotly_chart(fig2, use_container_width=True)
@@ -135,7 +170,7 @@ if uploaded_files:
         for i, row in final_summary.iterrows():
             m_cols[i % 4].metric(label=f"Energy ({row['Coupon']})", value=f"{row['Energy (J)']:.2f} J")
             
-        fig3 = px.line(final_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
+        fig3 = px.line(plot_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
                        labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
                        title='Area Under Load-Displacement Curve')
         fig3.update_traces(fill='tozeroy', opacity=0.3)
