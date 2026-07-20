@@ -107,7 +107,7 @@ with col_up1:
 with col_up2:
     st.write("")
     st.write("")
-    use_demo = st.toggle("Use Sample Data for Demo")
+    use_demo = st.toggle("Just checking this out? Use sample data")
 
 if use_demo and not uploaded_files:
     try:
