@@ -231,3 +231,5 @@ if uploaded_files:
             file_name='fea_cleaned_instron_data.csv',
             mime='text/csv',
         )
+
+st.markdown("<br><br><p style='text-align: center; font-size: 10px; color: gray;'>created by jiillanne@ Product Design Engineering Intern, Advanced Architechture</p>", unsafe_allow_html=True)
