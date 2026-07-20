@@ -31,7 +31,7 @@ def process_file(uploaded_file):
     summary = []
     
     for i, start_idx in enumerate(data_starts):
-        coupon_id = f"Coupon_{i+1:02d}"
+        specimen_id = f"Specimen_{i+1:02d}"
         
         end_idx = data_starts[i+1] if i+1 < len(data_starts) else len(lines)
         data_lines = lines[start_idx+2:end_idx]
@@ -39,7 +39,7 @@ def process_file(uploaded_file):
         data_lines = [l for l in data_lines if len(l.split(',')) >= 8]
         
         if not data_lines:
-            raise ValueError(f"No valid data rows found for {coupon_id}.")
+            raise ValueError(f"No valid data rows found for {specimen_id}.")
         
         parsed_data = []
         for l in data_lines:
@@ -49,7 +49,7 @@ def process_file(uploaded_file):
                 parsed_data.append(row)
         
         if not parsed_data:
-            raise ValueError(f"Failed to parse numerical data for {coupon_id}.")
+            raise ValueError(f"Failed to parse numerical data for {specimen_id}.")
             
         df = pd.DataFrame(parsed_data, dtype=float)
         df.columns = ['time_s', 'displacement_mm', 'force_n', 'tensile_strain_percent', 
@@ -71,7 +71,7 @@ def process_file(uploaded_file):
         max_disp_idx = df['corrected_displacement_mm'].idxmax()
         df = df.loc[:max_disp_idx].copy()
         
-        df['coupon_id'] = coupon_id
+        df['specimen_id'] = specimen_id
         
         # Calculate Energy Absorption (J)
         # Trapezoidal rule for Force (N) vs Displacement (mm) -> 1 N*mm = 0.001 J
@@ -90,7 +90,7 @@ def process_file(uploaded_file):
         
         all_data.append(df)
         summary.append({
-            'Coupon': coupon_id,
+            'Specimen': specimen_id,
             'Peak Stress (MPa)': peak_stress,
             'Modulus (GPa)': modulus_gpa,
             'Strain at Break (%)': strain_break,
@@ -138,19 +138,19 @@ if uploaded_files:
         st.header("2. Visualizations")
         
         if 'focus_specimen' not in st.session_state:
-            st.session_state.focus_specimen = "All Coupons"
+            st.session_state.focus_specimen = "All Specimens"
 
         def reset_focus():
-            st.session_state.focus_specimen = "All Coupons"
+            st.session_state.focus_specimen = "All Specimens"
 
-        focus_coupon = st.selectbox("Focus Specimen:", options=["All Coupons"] + list(final_summary['Coupon'].unique()), key='focus_specimen')
+        focus_specimen = st.selectbox("Focus Specimen:", options=["All Specimens"] + list(final_summary['Specimen'].unique()), key='focus_specimen')
         
         plot_df = final_df
-        if focus_coupon != "All Coupons":
+        if focus_specimen != "All Specimens":
             st.button("Reset View", on_click=reset_focus)
-            plot_df = final_df[final_df['coupon_id'] == focus_coupon]
-            row = final_summary[final_summary['Coupon'] == focus_coupon].iloc[0]
-            st.info(f"🌟 **Specimen Spotlight: {focus_coupon}**\n\n"
+            plot_df = final_df[final_df['specimen_id'] == focus_specimen]
+            row = final_summary[final_summary['Specimen'] == focus_specimen].iloc[0]
+            st.info(f"🌟 **Specimen Spotlight: {focus_specimen}**\n\n"
                     f"Peak Stress: **{row['Peak Stress (MPa)']:.2f} MPa** | "
                     f"Young's Modulus: **{row['Modulus (GPa)']:.2f} GPa** | "
                     f"Strain at Break: **{row['Strain at Break (%)']:.2f} %** | "
@@ -160,14 +160,14 @@ if uploaded_files:
         
         with col1:
             st.subheader("Stress vs. Strain")
-            fig1 = px.line(plot_df, x='tensile_strain_percent', y='tensile_stress_mpa', color='coupon_id',
+            fig1 = px.line(plot_df, x='tensile_strain_percent', y='tensile_stress_mpa', color='specimen_id',
                            labels={'tensile_strain_percent': 'Tensile Strain (%)', 'tensile_stress_mpa': 'Tensile Stress (MPa)'},
                            title='Stress vs Strain')
             st.plotly_chart(fig1, use_container_width=True)
             
         with col2:
             st.subheader("Force vs. Displacement")
-            fig2 = px.line(plot_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
+            fig2 = px.line(plot_df, x='corrected_displacement_mm', y='force_n', color='specimen_id',
                            labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
                            title='Load vs Displacement')
             st.plotly_chart(fig2, use_container_width=True)
@@ -178,9 +178,9 @@ if uploaded_files:
         # Display metric cards for energy absorption
         m_cols = st.columns(min(len(final_summary), 4) if len(final_summary) > 0 else 1)
         for i, row in final_summary.iterrows():
-            m_cols[i % 4].metric(label=f"Energy ({row['Coupon']})", value=f"{row['Energy (J)']:.2f} J")
+            m_cols[i % 4].metric(label=f"Energy ({row['Specimen']})", value=f"{row['Energy (J)']:.2f} J")
             
-        fig3 = px.line(plot_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
+        fig3 = px.line(plot_df, x='corrected_displacement_mm', y='force_n', color='specimen_id',
                        labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
                        title='Area Under Load-Displacement Curve')
         fig3.update_traces(fill='tozeroy', opacity=0.3)
@@ -190,9 +190,9 @@ if uploaded_files:
         st.markdown("Download the cleaned dataset for downstream analysis or visualization.")
         
         st.subheader("Data Previews")
-        for coupon in final_df['coupon_id'].unique():
-            with st.expander(f"Preview {coupon}"):
-                st.dataframe(final_df[final_df['coupon_id'] == coupon].head(10))
+        for specimen in final_df['specimen_id'].unique():
+            with st.expander(f"Preview {specimen}"):
+                st.dataframe(final_df[final_df['specimen_id'] == specimen].head(10))
         
         csv = final_df.to_csv(index=False).encode('utf-8')
         st.download_button(
