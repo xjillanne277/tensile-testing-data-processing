@@ -130,7 +130,10 @@ if uploaded_files:
         st.header("3. Export Cleaned Data")
         st.markdown("Download the cleaned dataset for downstream analysis or visualization.")
         
-        st.dataframe(final_df.head(10))
+        st.subheader("Data Previews")
+        for coupon in final_df['coupon_id'].unique():
+            with st.expander(f"Preview {coupon}"):
+                st.dataframe(final_df[final_df['coupon_id'] == coupon].head(10))
         
         csv = final_df.to_csv(index=False).encode('utf-8')
         st.download_button(
