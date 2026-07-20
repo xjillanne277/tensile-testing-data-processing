@@ -8,14 +8,14 @@ import io
 
 st.set_page_config(page_title="Instron Data Processor", layout="wide")
 
-st.title("Instron Mechanical Data Processing - NMT Plastics")
+st.title("Instron Tensile Testing Data Processing")
 
 st.markdown("""
-Upload raw Instron CSV files to parse, clean, and visualize mechanical testing data for short-fiber glass-filled plastics. 
-Automatically zeroes baselines, calculates Energy Absorption (J), and provides downloadable CSVs formatted for FEA.
+Upload raw Instron CSV files to parse, clean, and visualize tensile mechanical testing data. 
+Automatically zeroes baselines, calculates Energy Absorption (J), and provides downloadable cleaned CSVs.
 """)
 
-def process_file(uploaded_file, orientation):
+def process_file(uploaded_file):
     lines = uploaded_file.getvalue().decode('utf-8').splitlines()
     
     # Find start indices of data blocks
@@ -62,7 +62,6 @@ def process_file(uploaded_file, orientation):
         # Noise Reduction (remove negative strain)
         df = df[df['tensile_strain_percent'] >= 0.0]
         
-        df['orientation'] = orientation
         df['coupon_id'] = coupon_id
         
         # Calculate Energy Absorption (J)
@@ -82,7 +81,6 @@ def process_file(uploaded_file, orientation):
         all_data.append(df)
         summary.append({
             'Coupon': coupon_id,
-            'Orientation': orientation,
             'Peak Stress (MPa)': peak_stress,
             'Modulus (GPa)': modulus_gpa,
             'Energy (J)': energy_j
@@ -96,14 +94,9 @@ if uploaded_files:
     dfs = []
     summaries = []
     
-    st.sidebar.header("Configuration")
-    
     for file in uploaded_files:
-        orientation = st.sidebar.selectbox(f"Orientation for {file.name}", 
-                                           options=["0°", "30°", "45°", "60°", "90°"], 
-                                           key=file.name)
         try:
-            df, summary = process_file(file, orientation)
+            df, summary = process_file(file)
             dfs.append(df)
             summaries.append(summary)
         except Exception as e:
@@ -116,10 +109,6 @@ if uploaded_files:
         st.header("1. Summary Metrics")
         st.dataframe(final_summary)
         
-        mean_summary = final_summary.groupby('Orientation').mean(numeric_only=True).reset_index()
-        st.subheader("Mean Values by Orientation")
-        st.dataframe(mean_summary)
-        
         st.header("2. Visualizations")
         
         col1, col2 = st.columns(2)
@@ -127,7 +116,6 @@ if uploaded_files:
         with col1:
             st.subheader("Stress vs. Strain")
             fig1 = px.line(final_df, x='tensile_strain_percent', y='tensile_stress_mpa', color='coupon_id',
-                           line_group='orientation', hover_name='orientation',
                            labels={'tensile_strain_percent': 'Tensile Strain (%)', 'tensile_stress_mpa': 'Tensile Stress (MPa)'},
                            title='Stress vs Strain')
             st.plotly_chart(fig1, use_container_width=True)
@@ -135,13 +123,12 @@ if uploaded_files:
         with col2:
             st.subheader("Force vs. Displacement")
             fig2 = px.line(final_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
-                           line_group='orientation', hover_name='orientation',
                            labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
                            title='Load vs Displacement')
             st.plotly_chart(fig2, use_container_width=True)
             
-        st.header("3. FEA Export")
-        st.markdown("Download the cleaned dataset grouped by orientation for use in Digimat or ANSYS/Abaqus plastic stress-strain tables.")
+        st.header("3. Export Cleaned Data")
+        st.markdown("Download the cleaned dataset for downstream analysis or visualization.")
         
         st.dataframe(final_df.head(10))
         
