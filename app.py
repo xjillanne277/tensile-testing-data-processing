@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import scipy.integrate
 import matplotlib.pyplot as plt
+import plotly.express as px
 import io
 
 st.set_page_config(page_title="Instron Data Processor", layout="wide")
@@ -123,32 +124,19 @@ if uploaded_files:
         
         with col1:
             st.subheader("Stress vs. Strain")
-            fig1, ax1 = plt.subplots(figsize=(8, 6))
-            for (ori, coupon), group in final_df.groupby(['orientation', 'coupon_id']):
-                ax1.plot(group['tensile_strain_percent'], group['tensile_stress_mpa'], label=f"{ori} - {coupon}")
-            
-            # Too many labels might clutter, so only show unique orientations in legend if many coupons
-            handles, labels = plt.gca().get_legend_handles_labels()
-            by_label = dict(zip([l.split(' - ')[0] for l in labels], handles))
-            ax1.legend(by_label.values(), by_label.keys())
-            ax1.set_xlabel('Tensile Strain (%)')
-            ax1.set_ylabel('Tensile Stress (MPa)')
-            ax1.grid(True, linestyle='--', alpha=0.7)
-            st.pyplot(fig1)
+            fig1 = px.line(final_df, x='tensile_strain_percent', y='tensile_stress_mpa', color='coupon_id',
+                           line_group='orientation', hover_name='orientation',
+                           labels={'tensile_strain_percent': 'Tensile Strain (%)', 'tensile_stress_mpa': 'Tensile Stress (MPa)'},
+                           title='Stress vs Strain')
+            st.plotly_chart(fig1, use_container_width=True)
             
         with col2:
             st.subheader("Force vs. Displacement")
-            fig2, ax2 = plt.subplots(figsize=(8, 6))
-            for (ori, coupon), group in final_df.groupby(['orientation', 'coupon_id']):
-                ax2.plot(group['corrected_displacement_mm'], group['force_n'], label=f"{ori} - {coupon}")
-            
-            handles, labels = plt.gca().get_legend_handles_labels()
-            by_label = dict(zip([l.split(' - ')[0] for l in labels], handles))
-            ax2.legend(by_label.values(), by_label.keys())
-            ax2.set_xlabel('Corrected Displacement (mm)')
-            ax2.set_ylabel('Force (N)')
-            ax2.grid(True, linestyle='--', alpha=0.7)
-            st.pyplot(fig2)
+            fig2 = px.line(final_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
+                           line_group='orientation', hover_name='orientation',
+                           labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
+                           title='Load vs Displacement')
+            st.plotly_chart(fig2, use_container_width=True)
             
         st.header("3. FEA Export")
         st.markdown("Download the cleaned dataset grouped by orientation for use in Digimat or ANSYS/Abaqus plastic stress-strain tables.")
