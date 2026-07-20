@@ -100,7 +100,26 @@ def process_file(uploaded_file):
         
     return pd.concat(all_data, ignore_index=True), pd.DataFrame(summary)
 
-uploaded_files = st.file_uploader("Upload Raw Instron CSV(s)", type="csv", accept_multiple_files=True)
+col_up1, col_up2 = st.columns([3, 1])
+with col_up1:
+    uploaded_files = st.file_uploader("Upload Raw Instron CSV(s)", type="csv", accept_multiple_files=True)
+with col_up2:
+    st.write("")
+    st.write("")
+    use_demo = st.toggle("🚀 Use Sample Data for Demo")
+
+if use_demo and not uploaded_files:
+    try:
+        with open("Instron Sample Data - jilltest-gray_1.csv", "rb") as f:
+            class DummyFile:
+                def __init__(self, data, name):
+                    self.data = data
+                    self.name = name
+                def getvalue(self):
+                    return self.data
+            uploaded_files = [DummyFile(f.read(), "Instron Sample Data - jilltest-gray_1.csv")]
+    except FileNotFoundError:
+        st.error("Sample data file not found!")
 
 if uploaded_files:
     dfs = []
