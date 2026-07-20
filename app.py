@@ -24,6 +24,9 @@ def process_file(uploaded_file, orientation):
         if 'Time,Displacement,Force' in line:
             data_starts.append(i)
             
+    if not data_starts:
+        raise ValueError("Could not find 'Time,Displacement,Force' data blocks in the file.")
+            
     all_data = []
     summary = []
     
@@ -35,18 +38,18 @@ def process_file(uploaded_file, orientation):
         data_lines = [l.strip() for l in data_lines if l.strip() and not l.startswith('Results')]
         data_lines = [l for l in data_lines if len(l.split(',')) >= 8]
         
+        if not data_lines:
+            raise ValueError(f"No valid data rows found for {coupon_id}.")
+        
         parsed_data = []
         for l in data_lines:
             parts = l.split(',')
             if len(parts) >= 8:
-                try:
-                    row = [float(x) for x in parts[1:8]]
-                    parsed_data.append(row)
-                except ValueError:
-                    continue
+                row = [float(x) for x in parts[1:8]]
+                parsed_data.append(row)
         
         if not parsed_data:
-            continue
+            raise ValueError(f"Failed to parse numerical data for {coupon_id}.")
             
         df = pd.DataFrame(parsed_data, dtype=float)
         df.columns = ['time_s', 'displacement_mm', 'force_n', 'tensile_strain_percent', 
@@ -85,10 +88,7 @@ def process_file(uploaded_file, orientation):
             'Energy (J)': energy_j
         })
         
-    if all_data:
-        return pd.concat(all_data, ignore_index=True), pd.DataFrame(summary)
-    else:
-        return None, None
+    return pd.concat(all_data, ignore_index=True), pd.DataFrame(summary)
 
 uploaded_files = st.file_uploader("Upload Raw Instron CSV(s)", type="csv", accept_multiple_files=True)
 
@@ -102,10 +102,12 @@ if uploaded_files:
         orientation = st.sidebar.selectbox(f"Orientation for {file.name}", 
                                            options=["0°", "30°", "45°", "60°", "90°"], 
                                            key=file.name)
-        df, summary = process_file(file, orientation)
-        if df is not None:
+        try:
+            df, summary = process_file(file, orientation)
             dfs.append(df)
             summaries.append(summary)
+        except Exception as e:
+            st.error(f"Error processing {file.name}: {e}")
             
     if dfs:
         final_df = pd.concat(dfs, ignore_index=True)
