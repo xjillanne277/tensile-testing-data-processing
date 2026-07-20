@@ -6,12 +6,8 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import io
 import os
-from PIL import Image
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-icon_img = Image.open(os.path.join(current_dir, "favicon.png"))
-
-st.set_page_config(page_title="Instron Data Processor", page_icon=icon_img, layout="wide")
+st.set_page_config(page_title="Instron Data Processor", page_icon="🦴", layout="wide")
 
 st.title("Instron Tensile Testing Data Processing")
 
