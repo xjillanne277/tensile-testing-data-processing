@@ -127,14 +127,6 @@ if uploaded_files:
                            title='Load vs Displacement')
             st.plotly_chart(fig2, use_container_width=True)
             
-        st.subheader("Energy Absorption (Area Under Curve)")
-        fig3 = px.area(final_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
-                       labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
-                       title='Filled Load-Displacement Area (Energy)')
-        # Remove stacking so the areas overlay on top of each other
-        fig3.update_traces(opacity=0.4, stackgroup=None, fill='tozeroy')
-        st.plotly_chart(fig3, use_container_width=True)
-            
         st.header("3. Export Cleaned Data")
         st.markdown("Download the cleaned dataset for downstream analysis or visualization.")
         
