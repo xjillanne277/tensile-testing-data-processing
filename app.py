@@ -5,6 +5,7 @@ import scipy.integrate
 import matplotlib.pyplot as plt
 import plotly.express as px
 import io
+import os
 
 st.set_page_config(page_title="Instron Data Processor", layout="wide")
 
@@ -106,11 +107,13 @@ with col_up1:
 with col_up2:
     st.write("")
     st.write("")
-    use_demo = st.toggle("🚀 Use Sample Data for Demo")
+    use_demo = st.toggle("Use Sample Data for Demo")
 
 if use_demo and not uploaded_files:
     try:
-        with open("Instron Sample Data - jilltest-gray_1.csv", "rb") as f:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        sample_path = os.path.join(current_dir, "Instron Sample Data - jilltest-gray_1.csv")
+        with open(sample_path, "rb") as f:
             class DummyFile:
                 def __init__(self, data, name):
                     self.data = data
@@ -169,7 +172,7 @@ if uploaded_files:
             st.button("Reset View", on_click=reset_focus)
             plot_df = final_df[final_df['specimen_id'] == focus_specimen]
             row = final_summary[final_summary['Specimen'] == focus_specimen].iloc[0]
-            st.info(f"🌟 **Specimen Spotlight: {focus_specimen}**\n\n"
+            st.info(f"**Specimen Spotlight: {focus_specimen}**\n\n"
                     f"Peak Stress: **{row['Peak Stress (MPa)']:.2f} MPa** | "
                     f"Young's Modulus: **{row['Modulus (GPa)']:.2f} GPa** | "
                     f"Strain at Break: **{row['Strain at Break (%)']:.2f} %** | "
