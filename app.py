@@ -7,7 +7,7 @@ import plotly.express as px
 import io
 import os
 
-st.set_page_config(page_title="Instron Data Processor", layout="wide")
+st.set_page_config(page_title="Instron Data Processor", page_icon="🦴", layout="wide")
 
 st.title("Instron Tensile Testing Data Processing")
 
