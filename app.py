@@ -2,22 +2,28 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import scipy.integrate
+import matplotlib.pyplot as plt
 import plotly.express as px
-import plotly.graph_objects as go
 import io
 
-st.set_page_config(page_title="Advanced Plastics Testing Processor", layout="wide")
+st.set_page_config(page_title="Instron Data Processor", layout="wide")
 
-st.title("Advanced Plastics Tensile Testing & FEA Export")
+st.title("Instron Tensile Testing Data Processing")
+
 st.markdown("""
-Upload raw Instron CSV files to parse, clean, and visualize mechanical testing data. 
-Calculates Modulus, Yield Stress, UTS, Strain at Break, and Energy Absorption.
+Upload raw Instron CSV files to parse, clean, and visualize tensile mechanical testing data. 
+Automatically zeroes baselines, calculates Energy Absorption (J), and provides downloadable cleaned CSVs.
 """)
 
-def process_file(uploaded_file, orientation):
+def process_file(uploaded_file):
     lines = uploaded_file.getvalue().decode('utf-8').splitlines()
     
-    data_starts = [i for i, line in enumerate(lines) if 'Time,Displacement,Force' in line]
+    # Find start indices of data blocks
+    data_starts = []
+    for i, line in enumerate(lines):
+        if 'Time,Displacement,Force' in line:
+            data_starts.append(i)
+            
     if not data_starts:
         raise ValueError("Could not find 'Time,Displacement,Force' data blocks in the file.")
             
@@ -49,50 +55,34 @@ def process_file(uploaded_file, orientation):
         df.columns = ['time_s', 'displacement_mm', 'force_n', 'tensile_strain_percent', 
                       'tensile_stress_mpa', 'tensile_displacement_mm', 'corrected_displacement_mm']
         
-        df['force_n'] -= df['force_n'].iloc[0]
-        df['tensile_stress_mpa'] -= df['tensile_stress_mpa'].iloc[0]
+        # Zeroing/Baseline Calibration
+        df['force_n'] = df['force_n'] - df['force_n'].iloc[0]
+        df['tensile_stress_mpa'] = df['tensile_stress_mpa'] - df['tensile_stress_mpa'].iloc[0]
+        
+        # Noise Reduction (remove negative strain)
         df = df[df['tensile_strain_percent'] >= 0.0]
         
-        if len(df) == 0:
-            raise ValueError(f"No positive strain data found for {coupon_id}.")
-            
-        df['orientation'] = orientation
-        df['coupon_id'] = f"{coupon_id}_{orientation}"
+        df['coupon_id'] = coupon_id
         
-        # Energy Absorption (Joules)
+        # Calculate Energy Absorption (J)
+        # Trapezoidal rule for Force (N) vs Displacement (mm) -> 1 N*mm = 0.001 J
         energy_j = scipy.integrate.trapezoid(df['force_n'], df['corrected_displacement_mm']) * 0.001
         
-        # UTS & Strain at Break
-        uts_mpa = df['tensile_stress_mpa'].max()
-        strain_at_break = df['tensile_strain_percent'].max()
-        
-        # Modulus & Yield
+        # Modulus estimation
         linear_region = df[(df['tensile_strain_percent'] > 0.05) & (df['tensile_strain_percent'] < 0.25)]
-        yield_stress = np.nan
         if len(linear_region) > 1:
-            slope, intercept = np.polyfit(linear_region['tensile_strain_percent']/100.0, linear_region['tensile_stress_mpa'], 1)
+            slope, _ = np.polyfit(linear_region['tensile_strain_percent']/100.0, linear_region['tensile_stress_mpa'], 1)
             modulus_gpa = slope / 1000.0
-            
-            # 0.2% offset yield
-            offset_stress = slope * (df['tensile_strain_percent']/100.0 - 0.002)
-            diff = df['tensile_stress_mpa'] - offset_stress
-            yield_points = df[diff < 0]
-            if not yield_points.empty and yield_points.index[0] > linear_region.index[-1]:
-                yield_stress = yield_points.iloc[0]['tensile_stress_mpa']
-            else:
-                yield_stress = uts_mpa
         else:
             modulus_gpa = np.nan
-            yield_stress = np.nan
             
+        peak_stress = df['tensile_stress_mpa'].max()
+        
         all_data.append(df)
         summary.append({
-            'Coupon': df['coupon_id'].iloc[0],
-            'Orientation': orientation,
-            'Yield Stress (MPa)': yield_stress,
-            'UTS (MPa)': uts_mpa,
+            'Coupon': coupon_id,
+            'Peak Stress (MPa)': peak_stress,
             'Modulus (GPa)': modulus_gpa,
-            'Strain at Break (%)': strain_at_break,
             'Energy (J)': energy_j
         })
         
@@ -101,13 +91,12 @@ def process_file(uploaded_file, orientation):
 uploaded_files = st.file_uploader("Upload Raw Instron CSV(s)", type="csv", accept_multiple_files=True)
 
 if uploaded_files:
-    dfs, summaries = [], []
+    dfs = []
+    summaries = []
     
-    st.sidebar.header("Configuration")
     for file in uploaded_files:
-        orientation = st.sidebar.selectbox(f"Orientation for {file.name}", options=["0°", "45°", "90°"], key=file.name)
         try:
-            df, summary = process_file(file, orientation)
+            df, summary = process_file(file)
             dfs.append(df)
             summaries.append(summary)
         except Exception as e:
@@ -117,56 +106,39 @@ if uploaded_files:
         final_df = pd.concat(dfs, ignore_index=True)
         final_summary = pd.concat(summaries, ignore_index=True)
         
-        st.header("1. Mechanical Metrics")
-        
-        cols = st.columns(min(len(final_summary), 4) if len(final_summary) > 0 else 1)
-        for i, row in final_summary.iterrows():
-            with cols[i % len(cols)]:
-                st.metric(label=f"{row['Coupon']} Energy", value=f"{row['Energy (J)']:.2f} J", delta=f"UTS: {row['UTS (MPa)']:.1f} MPa", delta_color="off")
-        
+        st.header("1. Summary Metrics")
         st.dataframe(final_summary)
         
-        st.header("2. Visualizations (Anisotropy & Energy)")
+        st.header("2. Visualizations")
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("Stress vs. Strain (with Yield & UTS)")
+            st.subheader("Stress vs. Strain")
             fig1 = px.line(final_df, x='tensile_strain_percent', y='tensile_stress_mpa', color='coupon_id',
-                           line_dash='orientation',
                            labels={'tensile_strain_percent': 'Tensile Strain (%)', 'tensile_stress_mpa': 'Tensile Stress (MPa)'},
                            title='Stress vs Strain')
-            
-            for i, row in final_summary.iterrows():
-                fig1.add_scatter(x=[row['Strain at Break (%)']], y=[row['UTS (MPa)']], mode='markers', 
-                                 marker=dict(symbol='x', size=10, color='red'), name=f"UTS {row['Coupon']}")
             st.plotly_chart(fig1, use_container_width=True)
             
         with col2:
-            st.subheader("Energy Absorption (Load vs. Displacement)")
+            st.subheader("Force vs. Displacement")
             fig2 = px.line(final_df, x='corrected_displacement_mm', y='force_n', color='coupon_id',
-                           line_dash='orientation',
-                           labels={'corrected_displacement_mm': 'Displacement (mm)', 'force_n': 'Force (N)'},
-                           title='Filled Area = Energy Absorption')
-            
-            fig2.update_traces(fill='tozeroy', opacity=0.3)
-            for i, row in final_summary.iterrows():
-                c_df = final_df[final_df['coupon_id'] == row['Coupon']]
-                if len(c_df) > 0:
-                    max_x = c_df['corrected_displacement_mm'].max()
-                    max_y = c_df['force_n'].max()
-                    fig2.add_annotation(x=max_x/2, y=max_y/2, text=f"{row['Energy (J)']:.2f} J", showarrow=False, font=dict(size=14), bgcolor="rgba(255,255,255,0.7)")
-            
+                           labels={'corrected_displacement_mm': 'Corrected Displacement (mm)', 'force_n': 'Force (N)'},
+                           title='Load vs Displacement')
             st.plotly_chart(fig2, use_container_width=True)
             
-        st.header("3. FEA Export")
-        st.markdown("Download the extracted metrics summary or the full multi-curve dataset.")
+        st.header("3. Export Cleaned Data")
+        st.markdown("Download the cleaned dataset for downstream analysis or visualization.")
         
-        col_dl1, col_dl2 = st.columns(2)
-        with col_dl1:
-            csv_sum = final_summary.to_csv(index=False).encode('utf-8')
-            st.download_button(label="Download Summary Metrics (CSV)", data=csv_sum, file_name='fea_summary_metrics.csv', mime='text/csv')
-            
-        with col_dl2:
-            csv_full = final_df.to_csv(index=False).encode('utf-8')
-            st.download_button(label="Download FEA Multi-Curve Dataset (CSV)", data=csv_full, file_name='fea_full_curves.csv', mime='text/csv')
+        st.subheader("Data Previews")
+        for coupon in final_df['coupon_id'].unique():
+            with st.expander(f"Preview {coupon}"):
+                st.dataframe(final_df[final_df['coupon_id'] == coupon].head(10))
+        
+        csv = final_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="Download Cleaned Data CSV",
+            data=csv,
+            file_name='fea_cleaned_instron_data.csv',
+            mime='text/csv',
+        )
