@@ -62,6 +62,15 @@ def process_file(uploaded_file):
         # Noise Reduction (remove negative strain)
         df = df[df['tensile_strain_percent'] >= 0.0]
         
+        # Anomaly Detection & Cleaning
+        anomalies = []
+        if (df['corrected_displacement_mm'].diff() < -0.05).any():
+            anomalies.append("Self-Intersecting/Machine Return (Auto-Fixed)")
+            
+        # Truncate at max displacement to remove return loop and stop at fracture
+        max_disp_idx = df['corrected_displacement_mm'].idxmax()
+        df = df.loc[:max_disp_idx].copy()
+        
         df['coupon_id'] = coupon_id
         
         # Calculate Energy Absorption (J)
@@ -85,7 +94,8 @@ def process_file(uploaded_file):
             'Peak Stress (MPa)': peak_stress,
             'Modulus (GPa)': modulus_gpa,
             'Strain at Break (%)': strain_break,
-            'Energy (J)': energy_j
+            'Energy (J)': energy_j,
+            'Anomalies': ", ".join(anomalies) if anomalies else "None"
         })
         
     return pd.concat(all_data, ignore_index=True), pd.DataFrame(summary)
@@ -115,13 +125,13 @@ if uploaded_files:
             display_summary[col] = display_summary[col].round(2)
         st.dataframe(display_summary, use_container_width=True)
         
-        st.subheader("Statistical Variation Analysis (% CV)")
+        st.subheader("Statistical Variation Analysis Among Samples")
         stats_df = pd.DataFrame()
         stats_df['Metric'] = ['Peak Stress (MPa)', 'Modulus (GPa)', 'Strain at Break (%)', 'Energy (J)']
         stats_df['Mean'] = [final_summary[c].mean() for c in stats_df['Metric']]
         stats_df['Std Dev'] = [final_summary[c].std() for c in stats_df['Metric']]
-        stats_df['% CV'] = (stats_df['Std Dev'] / stats_df['Mean']) * 100
-        for col in ['Mean', 'Std Dev', '% CV']:
+        stats_df['Coefficient of Variation (%)'] = (stats_df['Std Dev'] / stats_df['Mean']) * 100
+        for col in ['Mean', 'Std Dev', 'Coefficient of Variation (%)']:
             stats_df[col] = stats_df[col].round(2)
         st.dataframe(stats_df, use_container_width=True)
         
