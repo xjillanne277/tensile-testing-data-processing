@@ -111,18 +111,26 @@ with col_up2:
 
 if use_demo and not uploaded_files:
     try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        sample_path = os.path.join(current_dir, "Instron Sample Data - jilltest-gray_1.csv")
-        with open(sample_path, "rb") as f:
-            class DummyFile:
-                def __init__(self, data, name):
-                    self.data = data
-                    self.name = name
-                def getvalue(self):
-                    return self.data
-            uploaded_files = [DummyFile(f.read(), "Instron Sample Data - jilltest-gray_1.csv")]
-    except FileNotFoundError:
-        st.error("Sample data file not found!")
+        sample_candidates = [
+            "Instron Sample Data - jilltest-gray_1.csv",
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "Instron Sample Data - jilltest-gray_1.csv"),
+            os.path.join(os.getcwd(), "Instron Sample Data - jilltest-gray_1.csv")
+        ]
+        sample_path = next((p for p in sample_candidates if os.path.exists(p)), None)
+        
+        if sample_path:
+            with open(sample_path, "rb") as f:
+                class DummyFile:
+                    def __init__(self, data, name):
+                        self.data = data
+                        self.name = name
+                    def getvalue(self):
+                        return self.data
+                uploaded_files = [DummyFile(f.read(), "Instron Sample Data - jilltest-gray_1.csv")]
+        else:
+            st.error(f"Sample data file not found! Checked locations: {sample_candidates}")
+    except Exception as e:
+        st.error(f"Error loading sample data: {e}")
 
 if uploaded_files:
     dfs = []
